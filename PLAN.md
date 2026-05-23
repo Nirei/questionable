@@ -1,7 +1,9 @@
 # Questionable — Development Plan
 
-This file is the **active plan**. CLAUDE.md is the project bible (vision,
-domain model, conventions). PLAN.md is what we're doing next and why.
+This file is the **active plan**. [CLAUDE.md](./CLAUDE.md) is the project
+bible (vision, domain model, conventions, working agreement). Architecture
+decisions live in [`docs/adr/`](./docs/adr/). PLAN.md is what we're doing
+next and why.
 
 ## Current state
 
@@ -30,9 +32,11 @@ Carries over the plan from CLAUDE.md, anchored to today's tooling state.
   Add deps to `mix.exs`: `phoenix`, `phoenix_live_view`, `ash`,
   `ash_postgres`, `ash_phoenix`, `ash_authentication`,
   `ash_authentication_phoenix`, `oban`, `earmark`, `html_sanitize_ex`,
-  `{:activity_pub, git: "..."}`. Wire `phoenix_live_view` and `ash`
-  formatter rules into `.formatter.exs` via `import_deps:`. Bring up the
-  Repo, Endpoint, Router. `mix check` stays green.
+  and `{:activity_pub, git: "https://github.com/bonfire-networks/activity_pub", ref: "<sha>"}`
+  (see [ADR 0003](./docs/adr/0003-activitypub-library.md)). Wire
+  `phoenix_live_view` and `ash` formatter rules into `.formatter.exs` via
+  `import_deps:`. Bring up the Repo, Endpoint, Router. `mix check` stays
+  green.
 - **Phase 2 — Core domain (Accounts + QA).** `User`, `Question`, `Answer`,
   `Tag`, `QuestionTag` Ash resources. Migrations via `ash_postgres`.
 - **Phase 3 — Voting & reputation.** `Vote`, `ReputationEvent`; side
@@ -53,10 +57,12 @@ behaviour.
 ## Toolchain reproducibility
 
 - `.tool-versions` pins Erlang 27.3.4 + Elixir 1.18.4-otp-27 for mise/asdf.
-- `.claude/hooks/session-start.sh` rebuilds the toolchain from GitHub
-  releases when a Claude Code on the web container starts. First container
-  takes ~10–15 min (Erlang source build); subsequent sessions exit in <1s
-  because container state is cached.
+- `.claude/hooks/session-start.sh` rebuilds the toolchain (Erlang from
+  source, Elixir from a release binary, PostgreSQL from apt) when a Claude
+  Code on the web container starts. First container takes ~10–15 min
+  (Erlang build dominates); subsequent sessions exit in <1s because
+  container state is cached. See [ADR 0004](./docs/adr/0004-postgres-in-session-start-hook.md)
+  for the Postgres provisioning rationale.
 - `.editorconfig` covers cross-editor whitespace.
 - `.formatter.exs` is the single source of truth for code style.
 

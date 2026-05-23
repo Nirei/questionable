@@ -1,8 +1,8 @@
 #!/bin/bash
-# Installs the Erlang/OTP + Elixir toolchain so this project's `mix` commands
-# work in Claude Code on the web. The first run takes ~10-15 minutes to
-# compile Erlang from source; the container's filesystem is cached, so
-# subsequent sessions exit in <1s.
+# Installs the Erlang/OTP + Elixir toolchain and PostgreSQL so this project's
+# `mix` and `mix ecto.*` commands work in Claude Code on the web. The first
+# run takes ~10-15 minutes to compile Erlang from source; the container's
+# filesystem is cached, so subsequent sessions exit in <1s.
 set -euo pipefail
 
 # Only run in Claude Code on the web. Locally, the dev sets up their own
@@ -20,6 +20,9 @@ ELIXIR_OTP_MAJOR="27"
   echo 'export LANG=en_US.UTF-8'
   echo 'export LC_ALL=en_US.UTF-8'
   echo 'export ELIXIR_ERL_OPTIONS="+fnu"'
+  echo 'export PGHOST=localhost'
+  echo 'export PGUSER=questionable'
+  echo 'export PGPASSWORD=questionable'
 } >> "${CLAUDE_ENV_FILE:-/dev/null}"
 
 export LANG=en_US.UTF-8
@@ -83,9 +86,37 @@ install_elixir() {
   rm -rf "${tmp}"
 }
 
+install_postgres() {
+  if command -v psql >/dev/null 2>&1 && pg_isready -q 2>/dev/null; then
+    echo "PostgreSQL already installed and running."
+    return 0
+  fi
+
+  if ! command -v psql >/dev/null 2>&1; then
+    echo "Installing PostgreSQL..."
+    sudo apt-get update -qq
+    sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
+      postgresql postgresql-contrib >/dev/null
+  fi
+
+  # Ubuntu's package starts the cluster via pg_ctlcluster; in container envs
+  # without systemd this needs an explicit start.
+  sudo pg_ctlcluster "$(pg_lsclusters -h | awk 'NR==1{print $1}')" \
+    "$(pg_lsclusters -h | awk 'NR==1{print $2}')" start >/dev/null 2>&1 || true
+
+  # Create a dev superuser matching the PG* env vars above. Idempotent.
+  sudo -u postgres psql -tAc \
+    "SELECT 1 FROM pg_roles WHERE rolname='questionable'" | grep -q 1 || \
+    sudo -u postgres psql -c \
+      "CREATE ROLE questionable WITH LOGIN SUPERUSER PASSWORD 'questionable'" \
+      >/dev/null
+}
+
 install_erlang
 install_elixir
+install_postgres
 
 echo "Toolchain ready:"
 erl -noshell -eval 'io:format("  Erlang/OTP ~s~n", [erlang:system_info(otp_release)]),halt()'
 elixir --version | tail -1 | sed 's/^/  /'
+printf '  PostgreSQL %s\n' "$(psql --version | awk '{print $3}')"
