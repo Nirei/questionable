@@ -1,0 +1,11 @@
+#!/bin/bash
+# Pre-commit hook: runs `mix check` so the contract is enforced locally.
+# Enable once with: git config core.hooksPath .githooks
+set -euo pipefail
+
+if ! command -v mix >/dev/null 2>&1; then
+  echo "pre-commit: mix not on PATH; skipping check" >&2
+  exit 0
+fi
+
+exec mix check
