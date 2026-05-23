@@ -1,10 +1,27 @@
-/_build
-/cover
-/deps
-/doc
+# Build artifacts
+/_build/
+/cover/
+/deps/
+/doc/
 /.fetch
 erl_crash.dump
 *.ez
 *.beam
+
+# Configs that may contain secrets
 /config/*.secret.exs
+
+# Editors
 .elixir_ls/
+.vscode/
+.idea/
+
+# Dialyzer PLTs (rebuilt locally; never commit)
+/priv/plts/*.plt
+/priv/plts/*.plt.hash
+
+# Per-machine Claude Code overrides
+.claude/settings.local.json
+
+# OS
+.DS_Store
