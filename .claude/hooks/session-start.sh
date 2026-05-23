@@ -3,9 +3,6 @@
 # work in Claude Code on the web. The first run takes ~10-15 minutes to
 # compile Erlang from source; the container's filesystem is cached, so
 # subsequent sessions exit in <1s.
-#
-# We build from GitHub releases because builds.hex.pm and packages.erlang-
-# solutions.com are not on the network allowlist. See PLAN.md.
 set -euo pipefail
 
 # Only run in Claude Code on the web. Locally, the dev sets up their own
