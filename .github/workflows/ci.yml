@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: mix check
+    runs-on: ubuntu-24.04
+
+    env:
+      MIX_ENV: test
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read .tool-versions
+        id: versions
+        run: |
+          echo "otp=$(awk '/^erlang /{print $2}' .tool-versions)" >> "$GITHUB_OUTPUT"
+          echo "elixir=$(awk '/^elixir /{print $2}' .tool-versions | sed 's/-.*//')" >> "$GITHUB_OUTPUT"
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ steps.versions.outputs.otp }}
+          elixir-version: ${{ steps.versions.outputs.elixir }}
+
+      - name: Cache deps and _build
+        uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: ${{ runner.os }}-otp${{ steps.versions.outputs.otp }}-elixir${{ steps.versions.outputs.elixir }}-mix-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-otp${{ steps.versions.outputs.otp }}-elixir${{ steps.versions.outputs.elixir }}-mix-
+
+      - name: Cache dialyzer PLTs
+        uses: actions/cache@v4
+        with:
+          path: priv/plts
+          key: ${{ runner.os }}-otp${{ steps.versions.outputs.otp }}-elixir${{ steps.versions.outputs.elixir }}-plt-${{ hashFiles('**/mix.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-otp${{ steps.versions.outputs.otp }}-elixir${{ steps.versions.outputs.elixir }}-plt-
+
+      - run: mix deps.get
+      - run: mix check
