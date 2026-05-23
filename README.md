@@ -12,7 +12,7 @@ Toolchain: Erlang/OTP 27, Elixir 1.18 (pinned in `.tool-versions`).
 
 ```bash
 mise install                # or: asdf install
-mix deps.get                # needs hex.pm access — see PLAN.md
+mix deps.get
 mix check                   # format + compile + xref + test + dialyzer
 ```
 

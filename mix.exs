@@ -37,10 +37,6 @@ defmodule Questionable.MixProject do
   defp elixirc_options(env) when env in [:dev, :test], do: [warnings_as_errors: true]
   defp elixirc_options(_), do: []
 
-  # Dependencies are intentionally empty: this environment cannot reach
-  # repo.hex.pm to fetch tarballs. The full dependency list per CLAUDE.md
-  # (phoenix, ash, oban, earmark, html_sanitize_ex, activity_pub, ...) is
-  # tracked in PLAN.md and added in Phase 1 once a hex-reachable host runs.
   defp deps do
     []
   end
