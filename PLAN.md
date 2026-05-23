@@ -60,6 +60,91 @@ behaviour.
 - `.editorconfig` covers cross-editor whitespace.
 - `.formatter.exs` is the single source of truth for code style.
 
+## Design handoff
+
+The design system and screen mocks for the product live in
+[`/design`](./design/) as static HTML/CSS/React prototypes exported from
+Claude Design. They are the **visual specification** — use them as the
+source of truth for dimensions, colours, typography, and layout when
+implementing LiveViews. Do not implement *from* the JSX directly; read it
+and translate to Phoenix templates + CSS custom properties.
+
+### Files
+
+- **`tokens.css`** — full design-token layer. Surfaces (`--paper`, `--paper-2`,
+  `--paper-3`, `--card`), ink weights (`--ink` through `--ink-4`), rules
+  (`--rule`, `--rule-soft`), accents (`--oxblood` primary, `--sage`, `--amber`
+  with tint variants), type (`--serif` Newsreader, `--sans` IBM Plex Sans,
+  `--mono` IBM Plex Mono), radii (`--r-sm` 3px, `--r` 5px, `--r-lg` 8px — no
+  rounded corners larger than 8px), and shared component classes (`.btn`,
+  `.tag`, `.card`, `.vote`, `.fed`, `.dropcap`, `.input`, `.kbd`, `.eyebrow`,
+  `.meta`). Translate these tokens 1-to-1 into CSS custom properties at
+  `:root`.
+- **`components.jsx`** — shared component library imported by every screen.
+  `QLogo`, `QTopBar`, `QAvatar`, `QUserChip`, `QTag`, `QVote`, `QCard`,
+  `QStat`, `QSidebar`, `QPage`, `QFooter`. Federation suffix pattern: every
+  username renders as `name<span class="fed"> ·instance.tld</span>` — italic,
+  `--ink-4`, never coloured.
+- **`screens-feed.jsx`** — screens **A · Home feed** and **B · Search results**.
+- **`screens-question.jsx`** — screens **E · Question detail** and
+  **F · Ask a question** (Title / Body / Tags fields; Write/Preview/Split
+  editor; tag token input with autocomplete).
+- **`screens-tags.jsx`** — screens **C · Tags index** (cloud + 3-column grid)
+  and **D · Tag detail**.
+- **`screens-other.jsx`** — screens **G · User profile** (header, tab bar,
+  stats strip, contributions table, 53×7 activity heatmap), **H · Moderation
+  queue** (KPI strip, heat-striped action cards), **I · Register / sign in**
+  (two-column split with federation-aware username field).
+- **`main.jsx`** — canvas entry. `TWEAK_DEFAULTS = { accent: "#8a3625",
+  font: "newsreader", warmth: 78 }`. Defines `ACCENT_MAP`, `FONT_MAP`, and
+  `applyTweaks()` which writes CSS custom properties at runtime. Mounts all
+  screens onto the design canvas grouped into "Entry & discovery", "The Q&A
+  surface", "People & the back room", "Getting in".
+- **`index.html`** — loads Google Fonts (Newsreader, IBM Plex Sans/Mono,
+  Spectral, Inter, Source Serif 4, JetBrains Mono), `tokens.css`, React 18 +
+  Babel standalone, then all JSX in dependency order.
+- **`design-canvas.jsx`**, **`tweaks-panel.jsx`** — canvas infrastructure
+  (pan/zoom, floating tweaks panel). Not relevant to production
+  implementation; ignore internals.
+
+### Screen-to-LiveView mapping
+
+| ID | Label | Dimensions | LiveView module (TBD) |
+| --- | --- | --- | --- |
+| A | Home feed | 1280×1100 | `QuestionableWeb.FeedLive` |
+| B | Search results | 1280×1100 | `QuestionableWeb.SearchLive` |
+| C | Tags index | 1280×1100 | `QuestionableWeb.TagsLive` |
+| D | Tag detail | 1280×1280 | `QuestionableWeb.TagLive` |
+| E | Question detail | 1280×1880 | `QuestionableWeb.QuestionLive` |
+| F | Ask a question | 1280×1480 | `QuestionableWeb.AskLive` |
+| G | User profile | 1280×1280 | `QuestionableWeb.ProfileLive` |
+| H | Moderation queue | 1280×1340 | `QuestionableWeb.ModLive` |
+| I | Register / sign in | 1280×840 | `QuestionableWeb.AuthLive` |
+
+Module names are provisional and will be confirmed as each screen is
+implemented in Phase 5+.
+
+### Design decisions to carry into implementation
+
+1. **No rounded corners > 8px.** The design uses `--r-lg: 8px` as the
+   maximum.
+2. **Tabular numerals everywhere** vote counts, view counts, rep scores
+   need `font-variant-numeric: tabular-nums`.
+3. **Federation suffix** is always italic `--ink-4`, never a link colour,
+   never bold. Pattern: `user<span class="fed"> ·instance.tld</span>`.
+4. **Code in body text** — inline `code` is oxblood on `--paper-2`
+   background; fenced blocks use `--paper-2` with `--rule-soft` border.
+5. **Drop-cap on question bodies** — the first paragraph of a question
+   uses `.dropcap` for editorial flavour.
+6. **Accepted answers** — sage-tint background
+   (`oklch(0.97 0.02 150 / 0.5)`) with sage border, `✓` in `--sage`.
+7. **Heat stripe on moderation items** — 4px coloured left border:
+   oxblood = red, amber = amber, sage = sage.
+8. **Activity heatmap** — 53 columns × 7 rows, 5 oxblood intensity levels,
+   rendered as `10×10px` divs with `border-radius: 1px`.
+9. **Tweakable accent** — `--oxblood` is the primary brand colour and should
+   be configurable per-instance via settings.
+
 ## What we are *not* doing
 
 (Mirrors CLAUDE.md "What NOT To Do" so the active plan stays honest.)
