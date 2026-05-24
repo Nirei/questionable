@@ -35,8 +35,12 @@ Carries over the plan from CLAUDE.md, anchored to today's tooling state.
   and `{:activity_pub, git: "https://github.com/bonfire-networks/activity_pub", ref: "<sha>"}`
   (see [ADR 0003](./docs/adr/0003-activitypub-library.md)). Wire
   `phoenix_live_view` and `ash` formatter rules into `.formatter.exs` via
-  `import_deps:`. Bring up the Repo, Endpoint, Router. `mix check` stays
-  green.
+  `import_deps:`. Bring up the Repo, Endpoint, Router. Populate
+  `config/runtime.exs` with `DATABASE_URL`, `SECRET_KEY_BASE`,
+  `PHX_HOST`, `PHX_PORT`, `RELEASE_COOKIE` reads. Add a `/health`
+  endpoint and wire the compose `healthcheck:` block. By the end of
+  this phase `docker compose up -d --build` produces a running, reachable
+  Phoenix app on the VPS. `mix check` stays green.
 - **Phase 2 — Core domain (Accounts + QA).** `User`, `Question`, `Answer`,
   `Tag`, `QuestionTag` Ash resources. Migrations via `ash_postgres`.
 - **Phase 3 — Voting & reputation.** `Vote`, `ReputationEvent`; side
@@ -53,6 +57,34 @@ Carries over the plan from CLAUDE.md, anchored to today's tooling state.
 
 Each phase ends with a green `mix check` and tests for that phase's
 behaviour.
+
+## Deployment
+
+The project ships as a Docker image built on the operator's VPS — no
+container registry, no CI write access to the host. See
+[ADR 0006](./docs/adr/0006-deployment-docker-compose.md) for the why.
+
+- `Dockerfile` — multi-stage build (Elixir builder → `debian:slim`
+  runner). Produces a `mix release` running as a non-root user under
+  `tini`.
+- `compose.yaml` — full stack: the app + `postgres:16-alpine` + a
+  `pgdata` named volume. App binds to `127.0.0.1:4000`; the operator's
+  existing nginx proxies to it.
+- `.env.example` — template for the operator's `.env` (gitignored).
+  `SECRET_KEY_BASE`, `PG_PASSWORD`, `RELEASE_COOKIE` are generated
+  on the VPS and never travel.
+
+Deploy loop on the VPS:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+The Dockerfile is in its final shape today, but produces an image that
+only starts an empty supervisor until Phase 1 lands a Phoenix
+endpoint. Phase 1 wires `config/runtime.exs`, the `/health` endpoint,
+and the compose `healthcheck:` block.
 
 ## Toolchain reproducibility
 

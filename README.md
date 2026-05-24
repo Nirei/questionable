@@ -32,3 +32,34 @@ git config core.hooksPath .githooks
 ```
 
 (Disable again with `git config --unset core.hooksPath`.)
+
+## Deploying
+
+The project ships as a Docker image built directly on the VPS — no
+registry, no CI write access to the host. See
+[ADR 0006](./docs/adr/0006-deployment-docker-compose.md) for the why.
+
+On the VPS (one-time):
+
+```bash
+git clone https://github.com/Nirei/questionable.git
+cd questionable
+cp .env.example .env
+# Fill in PG_PASSWORD, SECRET_KEY_BASE (openssl rand -base64 64 | tr -d '\n'),
+# RELEASE_COOKIE (openssl rand -hex 32), and PHX_HOST.
+docker compose up -d --build
+```
+
+Proxy your existing nginx to `127.0.0.1:4000` (or whatever you set
+`PHX_PORT` to). To deploy a new version:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+The Postgres volume (`pgdata`) is the source of truth for everything
+durable — including the ActivityPub actor private keys. **Back it up**:
+losing it permanently breaks federation, since other servers cache our
+public key and there is no rotation protocol. A nightly `pg_dump` to
+off-box storage is the minimum.

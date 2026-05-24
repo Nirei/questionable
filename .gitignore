@@ -10,6 +10,9 @@ erl_crash.dump
 
 # Configs that may contain secrets
 /config/*.secret.exs
+.env
+.env.*
+!.env.example
 
 # Editors
 .elixir_ls/

@@ -1,0 +1,49 @@
+# Self-contained production stack: app (built from local Dockerfile) +
+# PostgreSQL with a named volume for persistence. Bind the app to the
+# loopback interface only — the host's nginx reverse-proxies to it.
+#
+# Deploy loop on the VPS:
+#   git pull
+#   docker compose up -d --build
+#
+# Backups (out of scope here, but: don't skip them — losing pgdata loses
+# the ActivityPub actor private keys, which breaks federation
+# unrecoverably): cron a `pg_dump` to off-box storage of your choice.
+
+services:
+  app:
+    build: .
+    image: questionable:local
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${PG_USER:-questionable}:${PG_PASSWORD}@postgres:5432/${PG_DATABASE:-questionable}
+    ports:
+      - "127.0.0.1:${PHX_PORT:-4000}:4000"
+    # Phase 1 will land an HTTP /health endpoint; wire it up then:
+    # healthcheck:
+    #   test: ["CMD", "/app/bin/questionable", "rpc", "Questionable.Health.check()"]
+    #   interval: 30s
+    #   timeout: 5s
+    #   retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-questionable}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE:-questionable}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
